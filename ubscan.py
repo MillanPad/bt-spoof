@@ -7,12 +7,13 @@ class BluetoothScanner:
 
 
     def start_scan(self, duration):
-        # Scan Bluetooth devices using pybluez
+        # Escaneo de dispositivos bluetooth cercanos y los guarda en una lista con su direccion bluetooth, nombre y CoD
         duration = int(duration)
         nearby_devices = bluetooth.discover_devices(duration=duration, lookup_names=True, lookup_class=True)
         for (addr, name, cl) in nearby_devices:
             self.results.append([addr, name, cl])
 
     def get_devices(self):
+        #Retorna la lista de objetos
         return self.results
 
