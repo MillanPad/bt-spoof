@@ -158,6 +158,7 @@ class BluetoothConfigurator(QWidget):
         self.class_of_devices = {}  # Diccionario para almacenar las Class of Device por nombre
         
         self.item_counter = 0  # Reiniciar el contador
+        #Por cada dispositivo va sacando los valores y los guarda en las variables, ademas del nombre que lo guarda en la lista de la GUI
         for device in devices:
             mac_address = device[0]
             name = device[1]
@@ -179,30 +180,36 @@ class BluetoothConfigurator(QWidget):
         self.name_entry.setText(name)
 
     def clon_devices(self):
+       #Obtener el item de la lista que ha sido seleccionado
         item = self.scan_list.currentItem()
+        #Si existe el item, que obtenga el indice del objeto para poder sacar la direccion bluetooth, el nombre ye el CoD
         if item:
             item_index = self.scan_list.row(item)  # Obtener el índice del elemento en la lista
             mac_address = self.mac_addresses.get(item_index, "")
             name = self.name_entry.text()
             class_of_device = self.class_of_devices.get(item_index, "")
-            print(mac_address)
-            print(name)
-            print(class_of_device)
+        # Llama a la funcion encargada de establecer dichos parametros en el adaptador bluetooth, ademas pasa el CoD como entero
         updateName.clone_device(mac_address, name, class_of_device)
 
     def agent_daemon(self):
-        print("Ejecutar agente NoInputNoOutput como daemon")
+        # Ejecuta como daemon el agente bluetooth definido como NoInputNoOutput
         subprocess.run(["bt-agent", "-c", "NoInputNoOutput", "-d"])
 
     def descarga_agenda(self):
+        #Recibe el nombre de la tabla y direccion bluetooth de las variables globales que guardan el objetivo
         target = self.target_mac
         tabla = self.target_name
+        # Ejecuta el script pbapclient para descargarse la agenda telefonica
         pbapclient.main(target,tabla)
+        # Crea la tabla con los contactos
         createDatabase.createTableContacts(tabla)
     def descarga_sms(self):
+        #Recibe el nombre de la tabla y direccion bluetooth de las variables globales que guardan el objetivo
         target = self.target_mac
         tabla = self.target_name
+        # Ejecuta el script pbapclient para descargarse los SMS y MMS
         mapclient.main(target,tabla)
+        # Se crean threads para ejecutar de manera concurrente las funciones para crear las tablas de los mensajes recibidos, enviados, borrados y en borrador
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             subfold='inbox'
             executor.submit(createDatabase.createTableMsg(tabla=tabla,subfold=subfold))
